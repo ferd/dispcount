@@ -21,7 +21,7 @@ If you cannot afford to ignore a query and wish to eventually serve every one of
 
 Run the small Common Test suite with:
 
- `$ rebar ct`
+ `$ ./rebar compile && ./rebar ct`
 
 ## How to use dispcount ##
 
