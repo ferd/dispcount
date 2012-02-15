@@ -1,0 +1,10 @@
+{application, dispcount, [
+    {description, "A dispatching library for resources and "
+                  "task limiting based on shared counters"},
+    {vsn, "0.1.0"},
+    {applications, [kernel, stdlib]},
+    {registered, []},
+    {mod, {dispcount,[]}},
+    {modules, [dispcount, dispcount_supersup, dispcount_sup, dispcount_util,
+              dispcount_watcher, dispcount_serv]}
+]}.

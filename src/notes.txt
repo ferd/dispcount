@@ -1,0 +1,18 @@
+-- two options available: registered-based or ets-based dispatching
+
+-- get/put and base init are all generic operations to be split into a behaviour
+
+-- the initial supervision needs to start N of them at once and be able to return the config on demand
+
+- the pool isn't an app, but must be possible to fit
+ under a supervision tree. Although it should be possible for it to have its own supervision tree. If you depend on it, you use it.
+
+[dispcount_supersup]
+    |
+start({Mod,Args,Opts})
+    |
+ [dispcount_sup]
+  |         \
+  |        [watchers_sup]
+  |             |
+ [serv]      [watcher :: custom module]
