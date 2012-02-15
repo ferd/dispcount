@@ -86,7 +86,7 @@ The next function is `checkout`:
     checkout(_From, Ref) ->
         {ok, Ref, undefined}.
 
-By default, the behaviour takes care of making sure only valid requests for a checkout (resources aren't busy) are going through. The `_From` variable is the pid of the requester of a resource. This is useful if you need to change things like a socket's controlling process or a port's controller. Then, you only need to return a resource by doing `{ok, Resource, NewState}`, and th ecaller will see `{ok, Reference, Resource}`. The `Reference` is a token added in by dispcount and is needed to chick the resource back in. Other things to return are `{error, Reason, NewState}`, which will return `{error, Reason}` to the caller.
+By default, the behaviour takes care of making sure only valid requests for a checkout (resources aren't busy) are going through. The `_From` variable is the pid of the requester of a resource. This is useful if you need to change things like a socket's controlling process or a port's controller. Then, you only need to return a resource by doing `{ok, Resource, NewState}`, and the caller will see `{ok, Reference, Resource}`. The `Reference` is a token added in by dispcount and is needed to chick the resource back in. Other things to return are `{error, Reason, NewState}`, which will return `{error, Reason}` to the caller.
 
 Finally, you can return `{stop, Reason, NewState}` to terminate the resource watcher. Note that this is risky because of how things work (see the relevant section for this later in this README).
 
