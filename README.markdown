@@ -1,6 +1,6 @@
 # Dispcount #
 
-Dispcount is an attempt at making more efficient resource dispatching than usual Erlang pool approaches based on a single process receiving messages from everyone and possibly getting overloaded when demand is too high, or at least seeing slower and slower response times.
+Dispcount is an attempt at making more efficient resource dispatching than usual Erlang pool approaches based on a single process receiving messages from everyone and possibly getting overloaded when demand is too high, or at least seeing slower and slower response times. It is still a fairly young library and we expect it to get more stable with time.
 
 ## When should I use dispcount? ##
 
@@ -11,7 +11,7 @@ There have been a few characteristics assumed to be present for the design of di
 - because of the previous point, it is possible and prefered to simply not queue requests for busy resources, but instantly return. Newer requests will take their spot
 - low latency to know whether or not a resource is available is more important than being able to get all queries to run.
 
-If you cannot afford to ignore a query and wish to eventually serve every one of them, dispcount might not be for you.
+If you cannot afford to ignore a query and wish to eventually serve every one of them, dispcount might not be for you. Otherwise, you'll need to queue them yourself because all it does is grant you a resource or tell you it's busy.
 
 ## How to build ##
 
