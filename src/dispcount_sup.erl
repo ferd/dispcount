@@ -13,5 +13,5 @@ init({Name,Mod,InitOpts}) ->
            %  permanent, infinity, supervisor, [dispcount_sup]},
            {info_server,
             {dispcount_serv, start_link, [self(), Name, Mod, InitOpts]},
-             permanent, infinity, worker, [dispcount_serv]}
+             permanent, 120000, worker, [dispcount_serv]}
           ]}}.
