@@ -186,6 +186,10 @@ Whenever we check a resource back in or the process that acquired it dies, the c
 
 Generally, this allows us to move the bottleneck of similar applications away from a single process and its mailbox, to an evenly distributed number of workers. Then the next bottleneck will be the ETS tables (both set with read and write concurrency options), which are somewhat less likely to be as much of a hot spot.
 
+## I get crashes in R14, help me! ##
+
+The error you see is likely `{start_spec,{invalid_shutdown,infinity}}`. This is due to Erlang/OTP releases R14 (or generally, versions prior to R15) sometimes disliking the atom `infinity` in child specifications. If you have this problem, use the branch `r14` instead of `master`. It changes the `infinity` value to `120000` (arbitrarily long value), which should hopefully make things work smoothly (it did for me).
+
 ## What's left to do? ##
 
 - More complete testing suite.
