@@ -2,3 +2,5 @@
 *.beam
 *.dump
 *.COVER.*
+logs/*
+ebin/*

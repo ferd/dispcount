@@ -52,12 +52,14 @@ init({Id,C=#config{watcher_type=named,dispatch_table=Tid},{M,A}}) ->
     ets:insert(Tid, {Id, 0}),
     init(Id,C,M,A).
 
-handle_call({get, Pid}, _From, S=#state{callback=M, callback_state=CS, ref=undefined}) ->
+handle_call({get, Pid}, _From, S=#state{callback=M, callback_state=CS, ref=undefined, config=Conf, id=Id}) ->
     try M:checkout(Pid, CS) of
         {ok, Res, NewCS} ->
             MonRef = erlang:monitor(process, Pid),
             {reply, {ok, {self(),MonRef}, Res}, S#state{callback_state=NewCS, ref=MonRef}};
         {error, Reason, NewCS} ->
+            #config{dispatch_table=DTid} = Conf,
+            set_free(DTid, Id),
             {reply, {error, Reason}, S#state{callback_state=NewCS}};
         {stop, Reason, NewCS} ->
             M:terminate(Reason, NewCS),

@@ -2,9 +2,9 @@
 -include_lib("common_test/include/ct.hrl").
 -export([all/0, init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
--export([starting/1, stopping/1, overload/1, dead/1]).
+-export([starting/1, stopping/1, overload/1, dead/1, error/1]).
 
-all() -> [starting, stopping, overload, dead].
+all() -> [starting, stopping, overload, dead, error].
 
 init_per_suite(Config) ->
     application:start(dispcount),
@@ -30,6 +30,15 @@ init_per_testcase(dead, Config) ->
               {maxr,10},{maxt,60},{resources,1}]
     ),
     {ok, Info} = dispcount:dispatcher_info(ref_dead_dispatcher),
+    [{info, Info} | Config];
+init_per_testcase(error, Config) ->
+    ok = dispcount:start_dispatch(
+            ref_error_dispatcher,
+            {ref_dispatch_error, []},
+             [{restart,permanent},{shutdown,4000},
+              {maxr,10},{maxt,60},{resources,1}]
+    ),
+    {ok, Info} = dispcount:dispatcher_info(ref_error_dispatcher),
     [{info, Info} | Config];
 init_per_testcase(_, Config) ->
     Config.
@@ -106,3 +115,13 @@ dead(Config) ->
     {error, busy} = dispcount:checkout(Info),
     timer:sleep(500),
     {ok, _Ref, _Res} = dispcount:checkout(Info).
+
+%% an error being returned resets the counter
+error(Config) ->
+    %% The dispatcher has 1 resource available
+    Info = ?config(info, Config),
+    %% returning a custom error (as done in the dispatch callback module for
+    %% this test) should reset the counter.
+    {error, denied} = dispcount:checkout(Info),
+    %% if we get {error, busy}, this is an error.
+    {error, denied} = dispcount:checkout(Info).
