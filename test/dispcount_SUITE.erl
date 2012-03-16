@@ -2,9 +2,11 @@
 -include_lib("common_test/include/ct.hrl").
 -export([all/0, init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
--export([starting/1, stopping/1, overload/1, dead/1, error/1]).
+-export([starting/1, stopping/1, overload/1, dead/1, error/1,
+         restart/1]).
 
-all() -> [starting, stopping, overload, dead, error].
+all() -> [starting, stopping, overload, dead, error,
+          restart].
 
 init_per_suite(Config) ->
     application:start(dispcount),
@@ -40,14 +42,28 @@ init_per_testcase(error, Config) ->
     ),
     {ok, Info} = dispcount:dispatcher_info(ref_error_dispatcher),
     [{info, Info} | Config];
+init_per_testcase(restart, Config) ->
+    Ref = make_ref(),
+    ok = dispcount:start_dispatch(
+            ref_restart_dispatcher,
+            {ref_dispatch_restart, [Ref]},
+             [{restart,permanent},{shutdown,4000},
+              {maxr,100},{maxt,1},{resources,1}]
+    ),
+    {ok, Info} = dispcount:dispatcher_info(ref_restart_dispatcher),
+    [{info, Info},{ref,Ref} | Config];
 init_per_testcase(_, Config) ->
     Config.
 
-end_per_testcase(overload, Config) ->
+end_per_testcase(overload, _Config) ->
     dispcount:stop_dispatch(ref_overload_dispatcher);
-end_per_testcase(dead, Config) ->
+end_per_testcase(dead, _Config) ->
     dispcount:stop_dispatch(ref_dead_dispatcher);
-end_per_testcase(_, Config) ->
+end_per_testcase(error, _Config) ->
+    dispcount:stop_dispatch(ref_error_dispatcher);
+end_per_testcase(restart, _Config) ->
+    dispcount:stop_dispatch(ref_restart_dispatcher);
+end_per_testcase(_, _Config) ->
     ok.
 
 starting(_Config) ->
@@ -125,3 +141,14 @@ error(Config) ->
     {error, denied} = dispcount:checkout(Info),
     %% if we get {error, busy}, this is an error.
     {error, denied} = dispcount:checkout(Info).
+
+restart(Config) ->
+    %% One resource available.
+    Info = ?config(info, Config),
+    Res = ?config(ref, Config),
+    put(crash, true),
+    %% Crashing the handler should make it possible to restart it
+    {'EXIT',_} = (catch dispcount:checkout(Info)),
+    timer:sleep(500),
+    put(crash, false),
+    {ok, _Ref, Res} = dispcount:checkout(Info).
