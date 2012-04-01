@@ -140,9 +140,15 @@ Here's a similar callback module to handle HTTP sockets (untested):
         {error, busy, State};
     checkout(From, State = #state{resource=Socket}) ->
         gen_tcp:controlling_process(Socket, From),
-        {ok, Socket, State#state{given=true}}.
+        %% We give our own pid back so that the client can make this
+        %% callback module the controlling process again before
+        %% handing it back.
+        {ok, {self(), Socket}, State#state{given=true}}.
     
     checkin(Socket, State = #state{resource=Socket, given=true}) ->
+        %% This assumes the client made us the controlling process again.
+        %% This might be done via a client lib wrapping dispcount calls of
+        %% some sort.
         {ok, State#state{given=false}};
     checkin(_Socket, State) ->
         %% The socket doesn't match the one we had -- an error happened somewhere
@@ -195,3 +201,4 @@ The error you see is likely `{start_spec,{invalid_shutdown,infinity}}`. This is 
 - More complete testing suite.
 - Adding a function call to allow the transfer of ownership from a process to another one to avoid messing with monitoring in the callback module.
 - Testing to make sure the callback modules can be updated with OTP relups and appups. This is so far untested.
+- Allowing dynamic resizing of pools.

@@ -11,7 +11,7 @@ checkout(_From, Ref) ->
 
 checkin(Ref, undefined) ->
     {ok, Ref};
-checkin(SomeRef, Ref) ->
+checkin(_SomeRef, Ref) ->
     {ignore, Ref}.
 
 dead(undefined) ->
