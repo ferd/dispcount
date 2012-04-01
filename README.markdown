@@ -106,7 +106,7 @@ The next call is the `dead/1` function:
     dead(undefined) ->
         {ok, make_ref()}.
 
-`dead(State)` is called whenever the process that checked out a given resource has died. This is because dispcount automatically monitors them so you don't need to do it yourself. If it sees the resource owner died, it calls thhat function.
+`dead(State)` is called whenever the process that checked out a given resource has died. This is because dispcount automatically monitors them so you don't need to do it yourself. If it sees the resource owner died, it calls that function.
 
  This lets you create a new instance of a resource to distribute later on, if required or possible. As an example, if we were to use a permanent connection to a database as a resource, then this is where we'd set a new connection up and then keep going as if nothing went wrong.
 
