@@ -198,7 +198,6 @@ The error you see is likely `{start_spec,{invalid_shutdown,infinity}}`. This is 
 
 ## What's left to do? ##
 
-- More complete testing suite.
 - Adding a function call to allow the transfer of ownership from a process to another one to avoid messing with monitoring in the callback module.
 - Testing to make sure the callback modules can be updated with OTP relups and appups. This is so far untested.
 - Allowing dynamic resizing of pools.
