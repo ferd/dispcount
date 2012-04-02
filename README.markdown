@@ -6,12 +6,14 @@ Dispcount is an attempt at making more efficient resource dispatching than usual
 
 There have been a few characteristics assumed to be present for the design of dispcount:
 
-- resources are limited, but the demand for them is superior to their availability.
+- resources are limited, but the demand for them is far superior to their availability.
 - requests for resources are *always* incoming
 - because of the previous point, it is possible and prefered to simply not queue requests for busy resources, but instantly return. Newer requests will take their spot
 - low latency to know whether or not a resource is available is more important than being able to get all queries to run.
 
 If you cannot afford to ignore a query and wish to eventually serve every one of them, dispcount might not be for you. Otherwise, you'll need to queue them yourself because all it does is grant you a resource or tell you it's busy.
+
+Also note that the dispatching of resources is done on a hashing basis and doesn't guarantee that all resources are to be allocated before showing a 'busy' response. As mentioned earlier, dispcount makes the assumption that there are limited resources and the demand is superior to their availability; the more requests for resources there are, the better the distribution should be. See 'how does it work' for more details.
 
 ## How to build ##
 
@@ -106,7 +108,7 @@ The next call is the `dead/1` function:
     dead(undefined) ->
         {ok, make_ref()}.
 
-`dead(State)` is called whenever the process that checked out a given resource has died. This is because dispcount automatically monitors them so you don't need to do it yourself. If it sees the resource owner died, it calls thhat function.
+`dead(State)` is called whenever the process that checked out a given resource has died. This is because dispcount automatically monitors them so you don't need to do it yourself. If it sees the resource owner died, it calls that function.
 
  This lets you create a new instance of a resource to distribute later on, if required or possible. As an example, if we were to use a permanent connection to a database as a resource, then this is where we'd set a new connection up and then keep going as if nothing went wrong.
 
@@ -140,9 +142,15 @@ Here's a similar callback module to handle HTTP sockets (untested):
         {error, busy, State};
     checkout(From, State = #state{resource=Socket}) ->
         gen_tcp:controlling_process(Socket, From),
-        {ok, Socket, State#state{given=true}}.
+        %% We give our own pid back so that the client can make this
+        %% callback module the controlling process again before
+        %% handing it back.
+        {ok, {self(), Socket}, State#state{given=true}}.
     
     checkin(Socket, State = #state{resource=Socket, given=true}) ->
+        %% This assumes the client made us the controlling process again.
+        %% This might be done via a client lib wrapping dispcount calls of
+        %% some sort.
         {ok, State#state{given=false}};
     checkin(_Socket, State) ->
         %% The socket doesn't match the one we had -- an error happened somewhere
@@ -174,7 +182,7 @@ We'd see mailbox queue build-up, busy schedulers, and booming memory. Dispcount 
 
 The core concept of dispcount is based on two ETS tables: a dispatch table (write-only) and a worker matchup table (read-only). Two tables because what costs the most performance with ETS in terms of concurrency is switching between reading and writing.
 
-In each of the table, `N` entries are added: one for each resource available, matching with a process that manages that resource (a *watcher*). Persistent hashing of the resources allows to dispatch queries uniformly to all of these watchers. Once you know which watcher your request is dedicated to, the dispatch table is called into action.
+In each of the table, `N` entries are added: one for each resource available, matching with a process that manages that resource (a *watcher*). Persistent hashing of the resources allows to dispatch queries uniformly to all of these watchers. Once you know which watcher your request is dedicated to, the dispatch table is called into action. The persistent hashing does mean that it is not possible to guarantee that all free resources will be allocated before 'busy' messages start showing, but only that at a sufficiently high level of demand, the distribution should be roughly equal to all watchers, obtaining a full dispatching of resources.
 
 The dispatch table manages to allow both reads and writes while remaining write-only. The trick is to use the `ets:update_counter` functions, which atomically increment a counter and return the value, although the operation is only writing and communicating a minimum of information.
 
@@ -192,6 +200,6 @@ The error you see is likely `{start_spec,{invalid_shutdown,infinity}}`. This is 
 
 ## What's left to do? ##
 
-- More complete testing suite.
 - Adding a function call to allow the transfer of ownership from a process to another one to avoid messing with monitoring in the callback module.
 - Testing to make sure the callback modules can be updated with OTP relups and appups. This is so far untested.
+- Allowing dynamic resizing of pools.

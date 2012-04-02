@@ -4,3 +4,4 @@
 *.COVER.*
 logs/*
 ebin/*
+deps/*

@@ -1,13 +1,17 @@
--module(ref_dispatch).
+-module(ref_dispatch_restart).
 -behaviour(dispcount).
 -export([init/1, checkout/2, checkin/2, handle_info/2, dead/1,
          terminate/2, code_change/3]).
 
-init([]) ->
-    {ok, make_ref()}.
+init([Ref]) ->
+    {ok, Ref}.
 
-checkout(_From, Ref) ->
-    {ok, Ref, undefined}.
+checkout(From, Ref) ->
+    {dictionary, Dict} = erlang:process_info(From, dictionary),
+    case proplists:get_value(crash, Dict) of
+        true -> erlang:error(asked_for);
+        false -> {ok, Ref, undefined}
+    end.
 
 checkin(Ref, undefined) ->
     {ok, Ref};
@@ -25,3 +29,4 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
