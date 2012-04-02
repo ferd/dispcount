@@ -68,12 +68,33 @@ prop_nocrash() ->
                                         {?NAME, [Tid]},
                                         [{restart,permanent},{shutdown,4000},
                                          {maxr,10},{maxt,60},{resources,10}]),
-            {H,S,R} = run_commands(?MODULE, Cmds),
+            {H,_S,R} = run_commands(?MODULE, Cmds),
             ets:delete(Tid),
             ?WHENFAIL(io:format("History: ~p~n",[{Cmds,H}]),
                       aggregate(command_names(Cmds),
                                 R =:= ok))
         end).
+
+prop_parallel_nocrash() ->
+    ?FORALL(Cmds, parallel_commands(?MODULE, #state{}),
+        begin
+            %% the ETS table works with the dispcount dispatcher
+            %% in this test to assign increasing IDs to each dispatch_watcher
+            %% instance.
+            Tid = ets:new(ids, [public,set]),
+            ets:insert(Tid, {id,0}),
+            application:stop(dispcount),
+            application:start(dispcount),
+            ok = ?SERVER:start_dispatch(?NAME,
+                                        {?NAME, [Tid]},
+                                        [{restart,permanent},{shutdown,4000},
+                                         {maxr,10},{maxt,60},{resources,1}]),
+            {H,P,R} = run_parallel_commands(?MODULE, Cmds),
+            ets:delete(Tid),
+            ?WHENFAIL(io:format("Cmds:~p~nP:~p~nH:~p~nR:~p~n",[Cmds,P,H,R]),
+                                R =:= ok)
+        end).
+
 
 %% Simple wrapper to work around limitations of statem stuff.
 %% busy_checkin is basically a hack to circumvent the idea that the
