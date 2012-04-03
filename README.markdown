@@ -101,7 +101,7 @@ To check resources back in, the behaviour needs to implement the following:
 
 In this case, what happens is that we make sure that the resource that is being sent back to us is the right one. The first function clause makes sure that we only receive a reference after we've distributed one, and we then accept that one. If we receive extraneous references (maybe someone called the `checkin/3` function twice?), we ignore the result.
 
-The second clause here is entirely optional and defensive programming. Note that checking a resource in is a synchronous operation.
+The second clause here is entirely optional and defensive programming. Note that checking a resource in is an asynchronous operation.
 
 The next call is the `dead/1` function:
 
