@@ -39,7 +39,7 @@ init({Parent, Name, {M,A}, Opts}) ->
         proplists:get_value(restart,Opts,permanent),
         proplists:get_value(shutdown,Opts,5000),
         worker,
-        [dispcount_watcher,M]}]}, % <- check to make sure this can survive stuff
+        [dispcount_watcher,M]}]}, % <- check to make sure this can survive relups
     ChildSpec = {watchers_sup, {watchers_sup, start_link, [SupSpec]},
                  permanent, infinity, supervisor, [watchers_sup]},
     self() ! continue_init,

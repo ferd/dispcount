@@ -142,7 +142,7 @@ init(Id,Conf,M,A) ->
     end.
 
 dispatch_id(Num) ->
-    erlang:phash2({os:timestamp(),self()}, Num) + 1.
+    erlang:phash2({now(),self()}, Num) + 1.
 
 is_free(Tid, Id) ->
     %% We optionally keep a tiny message queue in there,

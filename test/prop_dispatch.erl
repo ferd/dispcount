@@ -10,7 +10,7 @@ init([Tid]) ->
 checkout(_From, Id) ->
     {ok, Id, Id}.
 
-checkin(Id, undefined) ->
+checkin(Id, Id) ->
     {ok, Id};
 checkin(_SomeId, Id) ->
     {ignore, Id}.
