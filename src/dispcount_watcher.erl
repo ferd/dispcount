@@ -8,7 +8,7 @@
                 id :: pos_integer(),
                 ref :: reference() | undefined}).
 
--export([start_link/3, checkout/1, checkin/3]).
+-export([start_link/3, checkout/1, checkout/2, checkin/3]).
 -export([init/1, handle_call/3, handle_cast/2,
          handle_info/2, code_change/3, terminate/2]).
 
@@ -21,16 +21,20 @@ start_link(Conf, Callback={_,_}, Id) ->
 
 -spec checkout(#config{}) -> {ok, Ref::term(), Resource::term()} | {error, Reason::term()}.
 checkout(Conf) ->
-    checkout(self(), Conf).
+    checkout(self(), Conf, 5000).
 
--spec checkout(pid(), #config{}) -> {ok, Ref::term(), Resource::term()} | {error, Reason::term()}.
-checkout(ToPid,#config{num_watchers=Num, watcher_type=Type, dispatch_table=DTid, worker_table=WTid}) ->
+-spec checkout(#config{}, timeout()) -> {ok, Ref::term(), Resource::term()} | {error, Reason::term()}.
+checkout(Conf, Timeout) ->
+    checkout(self(), Conf, Timeout).
+
+-spec checkout(pid(), #config{}, timeout()) -> {ok, Ref::term(), Resource::term()} | {error, Reason::term()}.
+checkout(ToPid,#config{num_watchers=Num, watcher_type=Type, dispatch_table=DTid, worker_table=WTid}, Timeout) ->
      case {Type, is_free(DTid, Id = dispatch_id(Num))} of
         {ets, true} ->
             [{_,Pid}] = ets:lookup(WTid, Id),
-            gen_server:call(Pid, {get,ToPid});
+            gen_server:call(Pid, {get,ToPid}, Timeout);
         {named, true} ->
-            gen_server:call(get_name(Id), {get,ToPid});
+            gen_server:call(get_name(Id), {get,ToPid}, Timeout);
         {_, false} ->
             {error, busy}
     end.

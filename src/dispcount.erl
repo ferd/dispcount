@@ -1,7 +1,8 @@
 -module(dispcount).
 -behaviour(application).
 -export([start/2,stop/1]).
--export([start_dispatch/3, stop_dispatch/1, dispatcher_info/1, checkout/1, checkin/3]).
+-export([start_dispatch/3, stop_dispatch/1,
+         dispatcher_info/1, checkout/1, checkout/2, checkin/3]).
 -export([behaviour_info/1]).
 
 %% eventually switch to -callback if it becomes backwards compatible
@@ -42,7 +43,11 @@ dispatcher_info(Name) ->
 
 -spec checkout(term()) -> {ok, term(), term()} | {error, term()}.
 checkout(Info) ->
-    dispcount_watcher:checkout(Info).
+    dispcount_watcher:checkout(Info, 5000).
+
+-spec checkout(term(), timeout()) -> {ok, term(), term()} | {error, term()}.
+checkout(Info, Timeout) ->
+    dispcount_watcher:checkout(Info, Timeout).
 
 -spec checkin(term(), term(), term()) -> ok.
 checkin(Info, CheckinRef, Resource) ->

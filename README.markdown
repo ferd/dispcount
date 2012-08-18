@@ -67,7 +67,7 @@ Using this `Info` value, calls to checkout resources can be made:
             give_up
     end
 
-And that's the gist of it.
+And that's the gist of it. Note that `dispcount:checkout` can also take a timeout value as a second argument. The value is similar to whatever OTP behaviours accept (default: 5000ms, can be the atom `infinity`).
 
 ## Writing a dispatcher callback module ##
 
