@@ -3,10 +3,10 @@
 -export([all/0, init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
 -export([starting/1, stopping/1, overload/1, dead/1, error/1,
-         restart/1]).
+         restart/1, timer/1]).
 
 all() -> [starting, stopping, overload, dead, error,
-          restart].
+          restart, timer].
 
 init_per_suite(Config) ->
     application:start(dispcount),
@@ -52,6 +52,15 @@ init_per_testcase(restart, Config) ->
     ),
     {ok, Info} = dispcount:dispatcher_info(ref_restart_dispatcher),
     [{info, Info},{ref,Ref} | Config];
+init_per_testcase(timer, Config) ->
+    ok = dispcount:start_dispatch(
+            ref_timer_dispatcher,
+            {ref_dispatch_noreply, []},
+             [{restart,permanent},{shutdown,4000},
+              {maxr,10},{maxt,1},{resources,1}]
+    ),
+    {ok, Info} = dispcount:dispatcher_info(ref_timer_dispatcher),
+    [{info, Info} | Config];
 init_per_testcase(_, Config) ->
     Config.
 
@@ -152,3 +161,12 @@ restart(Config) ->
     timer:sleep(500),
     put(crash, false),
     {ok, _Ref, Res} = dispcount:checkout(Info).
+
+timer(Config) ->
+    %% Never replying would mean a timeout after 5ms
+    %% Allow for more strict or permissive values
+    Info = ?config(info, Config),
+    T1 = os:timestamp(),
+    {'EXIT',{timeout, _}} = (catch dispcount:checkout(Info, 200)),
+    T2 = os:timestamp(),
+    true = 300000 > timer:now_diff(T2,T1).
