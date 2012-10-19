@@ -17,13 +17,13 @@ Also note that the dispatching of resources is done on a hashing basis and doesn
 
 ## How to build ##
 
- `$ ./rebar compile`
+ `make`
 
 ## Running tests ##
 
 Run the small Common Test suite with:
 
- `$ ./rebar compile && ./rebar ct`
+ `make test`
 
 ## How to use dispcount ##
 
