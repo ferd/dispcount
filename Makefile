@@ -1,3 +1,4 @@
+.PHONY: all test clean
 REBAR=./rebar
 
 all:
@@ -10,9 +11,8 @@ edoc:
 		@$(REBAR) doc
 
 test:
-		@rm -rf .eunit
-			@mkdir -p .eunit
-				@$(REBAR) skip_deps=true eunit
+		@$(REBAR) -C rebar.test.config get-deps compile
+		@$(REBAR) -C rebar.test.config ct skip_deps=true
 
 clean:
 		@rm -rf deps/ ebin/ logs/
