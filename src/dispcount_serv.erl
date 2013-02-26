@@ -18,7 +18,7 @@ start_link(Parent, Name, {M,A}, Opts) ->
 wait_for_dispatch(Name, Timeout) ->
     gen_server:call(get_name(Name), wait_for_tables, Timeout).
 
--spec get_info(Name::atom()) -> #config{}.
+-spec get_info(Name::atom()) -> {ok, #config{}}.
 get_info(Name) ->
     gen_server:call(get_name(Name), get_info).
 
