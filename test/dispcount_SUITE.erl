@@ -1,11 +1,13 @@
 -module(dispcount_SUITE).
 -include_lib("common_test/include/ct.hrl").
--export([all/0, init_per_suite/1, end_per_suite/1,
+-export([suite/0, all/0, init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
--export([starting/1, stopping/1, overload/1, dead/1, error/1,
+-export([starting/1, starting_named/1, stopping/1, overload/1, dead/1, error/1,
          restart/1, timer/1]).
 
-all() -> [starting, stopping, overload, dead, error,
+suite() -> [{timetrap,{seconds,30}}].
+
+all() -> [starting, starting_named, stopping, overload, dead, error,
           restart, timer].
 
 init_per_suite(Config) ->
@@ -90,6 +92,28 @@ starting(_Config) ->
         {error, busy} ->
             give_up
     end.
+
+starting_named(_Config) ->
+    ok = dispcount:start_dispatch(
+            first_named_dispatcher,
+            {ref_dispatch, []},
+             [{restart,permanent},{shutdown,4000},
+              {maxr,10},{maxt,60},{resources,10},{watcher_type,named}]
+    ),
+    ok = dispcount:start_dispatch(
+            second_named_dispatcher,
+            {ref_dispatch, []},
+             [{restart,permanent},{shutdown,4000},
+              {maxr,10},{maxt,60},{resources,10},{watcher_type,named}]
+    ),
+    {ok, FirstInfo} = dispcount:dispatcher_info(first_named_dispatcher),
+    {ok, FirstRef, FirstRes} = dispcount:checkout(FirstInfo),
+    dispcount:checkin(FirstInfo, FirstRef, FirstRes),
+
+    {ok, SecondInfo} = dispcount:dispatcher_info(second_named_dispatcher),
+    {ok, SecondRef, SecondRes} = dispcount:checkout(SecondInfo),
+    dispcount:checkin(SecondInfo, SecondRef, SecondRes),
+    ok.
 
 stopping(_Config) ->
     ok = dispcount:start_dispatch(
