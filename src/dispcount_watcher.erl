@@ -28,13 +28,13 @@ checkout(Conf, Timeout) ->
     checkout(self(), Conf, Timeout).
 
 -spec checkout(pid(), #config{}, timeout()) -> {ok, Ref::term(), Resource::term()} | {error, Reason::term()}.
-checkout(ToPid,#config{num_watchers=Num, watcher_type=Type, dispatch_table=DTid, worker_table=WTid}, Timeout) ->
+checkout(ToPid,#config{dispatch_name=Name, num_watchers=Num, watcher_type=Type, dispatch_table=DTid, worker_table=WTid}, Timeout) ->
      case {Type, is_free(DTid, Id = dispatch_id(Num))} of
         {ets, true} ->
             [{_,Pid}] = ets:lookup(WTid, Id),
             gen_server:call(Pid, {get,ToPid}, Timeout);
         {named, true} ->
-            gen_server:call(get_name(Id), {get,ToPid}, Timeout);
+            gen_server:call(get_name(Name, Id), {get,ToPid}, Timeout);
         {_, false} ->
             {error, busy}
     end.
@@ -51,8 +51,8 @@ init({Id,C=#config{watcher_type=ets,dispatch_table=DTid,worker_table=WTid},{M,A}
     ets:insert(WTid, {Id, self()}),
     ets:insert(DTid, {Id, 0}),
     init(Id,C,M,A);
-init({Id,C=#config{watcher_type=named,dispatch_table=Tid},{M,A}}) ->
-    register(get_name(Id), self()),
+init({Id,C=#config{dispatch_name=Name,watcher_type=named,dispatch_table=Tid},{M,A}}) ->
+    register(get_name(Name,Id), self()),
     ets:insert(Tid, {Id, 0}),
     init(Id,C,M,A).
 
@@ -135,8 +135,8 @@ terminate(_Reason, _State) ->
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPERS/PRIVATE %%%
 %%%%%%%%%%%%%%%%%%%%%%%
-get_name(Id) ->
-    list_to_atom("#"++atom_to_list(?MODULE)++integer_to_list(Id)).
+get_name(Name,Id) ->
+    list_to_atom("#"++atom_to_list(Name)++integer_to_list(Id)).
 
 init(Id,Conf,M,A) ->
     case M:init(A) of

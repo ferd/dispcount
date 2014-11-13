@@ -103,7 +103,7 @@ start_watchers(Sup, #config{num_watchers=Num}) ->
     ok.
 
 start_watcher(Sup, Id) ->
-    supervisor:start_child(Sup, [Id]).
+    {ok, _} = supervisor:start_child(Sup, [Id]).
 
 get_name(Name) ->
     list_to_atom(atom_to_list(Name) ++ "_serv").
