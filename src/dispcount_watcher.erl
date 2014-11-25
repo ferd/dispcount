@@ -29,7 +29,7 @@ checkout(Conf, Timeout) ->
 
 -spec checkout(pid(), #config{}, timeout()) -> {ok, Ref::term(), Resource::term()} | {error, Reason::term()}.
 checkout(ToPid,#config{dispatch_name=Name, num_watchers=Num, watcher_type=Type, dispatch_table=DTid, worker_table=WTid}, Timeout) ->
-     case {Type, is_free(DTid, Id = dispatch_id(Num))} of
+     case {Type, is_free(DTid, Id = dispatch_id(DTid, Num))} of
         {ets, true} ->
             [{_,Pid}] = ets:lookup(WTid, Id),
             gen_server:call(Pid, {get,ToPid}, Timeout);
@@ -145,8 +145,8 @@ init(Id,Conf,M,A) ->
         X -> X
     end.
 
-dispatch_id(Num) ->
-    erlang:phash2({now(),self()}, Num) + 1.
+dispatch_id(Tid, Num) ->
+    ets:update_counter(Tid, rr, {2, 1, Num, 1}).
 
 is_free(Tid, Id) ->
     %% We optionally keep a tiny message queue in there,

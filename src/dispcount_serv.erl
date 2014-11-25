@@ -51,7 +51,7 @@ handle_call(get_info, _From, S = #config{}) ->
 handle_call(wait_for_tables, _From, S = #config{num_watchers=N, dispatch_table=Tid}) ->
     %% there should be N + 1 entries in the dispatch table
     case ets:info(Tid, size) of
-        X when X =:= N+1 ->
+        X when X =:= N+2 ->
             {reply, ok, S};
         _ ->
             timer:sleep(1),
@@ -85,12 +85,14 @@ init_tables(Opts) ->
             Dispatch = ets:new(dispatch_table, [set, public, {write_concurrency,true}]),
             Worker = ets:new(worker_table, [set, public, {read_concurrency,true}]),
             true = ets:insert(Dispatch, {ct,0}),
+            true = ets:insert(Dispatch, {rr,0}),
             #config{watcher_type = ets,
                     dispatch_table = Dispatch,
                     worker_table = Worker};
         named -> %% here
             Dispatch = ets:new(dispatch_table, [set, public, {write_concurrency,true}]),
             true = ets:insert(Dispatch, {ct,0}),
+            true = ets:insert(Dispatch, {rr,0}),
             #config{watcher_type = named,
                     dispatch_table = Dispatch,
                     worker_table = undefined};
