@@ -13,7 +13,8 @@ There have been a few characteristics assumed to be present for the design of di
 
 If you cannot afford to ignore a query and wish to eventually serve every one of them, dispcount might not be for you. Otherwise, you'll need to queue them yourself because all it does is grant you a resource or tell you it's busy.
 
-Also note that the dispatching of resources is done on a hashing basis and doesn't guarantee that all resources are to be allocated before showing a 'busy' response. As mentioned earlier, dispcount makes the assumption that there are limited resources and the demand is superior to their availability; the more requests for resources there are, the better the distribution should be. See 'how does it work' for more details.
+Dispcount supports two types of dispatching, based on: hash (default) or round-robin.
+Note that hashing-based dispatching of resources doesn't guarantee that all resources are to be allocated before showing a 'busy' response. As mentioned earlier, dispcount makes the assumption that there are limited resources and the demand is superior to their availability; the more requests for resources there are, the better the distribution should be. See 'how does it work' for more details.
 
 ## How to build ##
 
