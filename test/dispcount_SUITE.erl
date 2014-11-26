@@ -1,14 +1,20 @@
 -module(dispcount_SUITE).
 -include_lib("common_test/include/ct.hrl").
--export([suite/0, all/0, init_per_suite/1, end_per_suite/1,
+-export([suite/0, all/0, groups/0, init_per_suite/1, end_per_suite/1,
+         init_per_group/2, end_per_group/2,
          init_per_testcase/2, end_per_testcase/2]).
 -export([starting/1, starting_named/1, stopping/1, overload/1, dead/1, error/1,
          restart/1, timer/1]).
 
 suite() -> [{timetrap,{seconds,30}}].
 
-all() -> [starting, starting_named, stopping, overload, dead, error,
-          restart, timer].
+groups() ->
+    [{hash, [], [starting, starting_named, stopping, overload, dead, error,
+                 restart, timer]},
+     {round_robin, [], [starting, starting_named, stopping, overload, dead, error,
+                        restart, timer]}].
+
+all() -> [{group, hash}, {group, round_robin}].
 
 init_per_suite(Config) ->
     application:start(dispcount),
@@ -17,12 +23,21 @@ init_per_suite(Config) ->
 end_per_suite(_Config) ->
     ok.
 
+init_per_group(hash, Config) ->
+    [{dispatch_mechanism, hash} | Config];
+init_per_group(round_robin, Config) ->
+    [{dispatch_mechanism, round_robin} | Config].
+
+end_per_group(_Group, _Config) ->
+    ok.
+
 init_per_testcase(overload, Config) ->
     ok = dispcount:start_dispatch(
             ref_overload_dispatcher,
             {ref_dispatch, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,60},{resources,2}]
+              {maxr,10},{maxt,60},{resources,2},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     {ok, Info} = dispcount:dispatcher_info(ref_overload_dispatcher),
     [{info, Info} | Config];
@@ -31,7 +46,8 @@ init_per_testcase(dead, Config) ->
             ref_dead_dispatcher,
             {ref_dispatch, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,60},{resources,1}]
+              {maxr,10},{maxt,60},{resources,1},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     {ok, Info} = dispcount:dispatcher_info(ref_dead_dispatcher),
     [{info, Info} | Config];
@@ -40,7 +56,8 @@ init_per_testcase(error, Config) ->
             ref_error_dispatcher,
             {ref_dispatch_error, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,60},{resources,1}]
+              {maxr,10},{maxt,60},{resources,1},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     {ok, Info} = dispcount:dispatcher_info(ref_error_dispatcher),
     [{info, Info} | Config];
@@ -50,7 +67,8 @@ init_per_testcase(restart, Config) ->
             ref_restart_dispatcher,
             {ref_dispatch_restart, [Ref]},
              [{restart,permanent},{shutdown,4000},
-              {maxr,100},{maxt,1},{resources,1}]
+              {maxr,100},{maxt,1},{resources,1},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     {ok, Info} = dispcount:dispatcher_info(ref_restart_dispatcher),
     [{info, Info},{ref,Ref} | Config];
@@ -59,7 +77,8 @@ init_per_testcase(timer, Config) ->
             ref_timer_dispatcher,
             {ref_dispatch_noreply, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,1},{resources,1}]
+              {maxr,10},{maxt,1},{resources,1},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     {ok, Info} = dispcount:dispatcher_info(ref_timer_dispatcher),
     [{info, Info} | Config];
@@ -74,15 +93,18 @@ end_per_testcase(error, _Config) ->
     dispcount:stop_dispatch(ref_error_dispatcher);
 end_per_testcase(restart, _Config) ->
     dispcount:stop_dispatch(ref_restart_dispatcher);
+end_per_testcase(timer, _Config) ->
+    dispcount:stop_dispatch(ref_timer_dispatcher);
 end_per_testcase(_, _Config) ->
     ok.
 
-starting(_Config) ->
+starting(Config) ->
     ok = dispcount:start_dispatch(
             ref_dispatcher,
             {ref_dispatch, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,60},{resources,10}]
+              {maxr,10},{maxt,60},{resources,10},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     {ok, Info} = dispcount:dispatcher_info(ref_dispatcher),
     case dispcount:checkout(Info) of
@@ -91,20 +113,23 @@ starting(_Config) ->
             dispcount:checkin(Info, CheckinReference, Resource);
         {error, busy} ->
             give_up
-    end.
+    end,
+    dispcount:stop_dispatch(ref_dispatcher).
 
-starting_named(_Config) ->
+starting_named(Config) ->
     ok = dispcount:start_dispatch(
             first_named_dispatcher,
             {ref_dispatch, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,60},{resources,10},{watcher_type,named}]
+              {maxr,10},{maxt,60},{resources,10},{watcher_type,named},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     ok = dispcount:start_dispatch(
             second_named_dispatcher,
             {ref_dispatch, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,60},{resources,10},{watcher_type,named}]
+              {maxr,10},{maxt,60},{resources,10},{watcher_type,named},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     {ok, FirstInfo} = dispcount:dispatcher_info(first_named_dispatcher),
     {ok, FirstRef, FirstRes} = dispcount:checkout(FirstInfo),
@@ -113,27 +138,33 @@ starting_named(_Config) ->
     {ok, SecondInfo} = dispcount:dispatcher_info(second_named_dispatcher),
     {ok, SecondRef, SecondRes} = dispcount:checkout(SecondInfo),
     dispcount:checkin(SecondInfo, SecondRef, SecondRes),
+
+    dispcount:stop_dispatch(first_named_dispatcher),
+    dispcount:stop_dispatch(second_named_dispatcher),
     ok.
 
-stopping(_Config) ->
+stopping(Config) ->
     ok = dispcount:start_dispatch(
             stop_dispatch,
             {ref_dispatch, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,60},{resources,1}]
+              {maxr,10},{maxt,60},{resources,1},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     already_started = dispcount:start_dispatch(
             stop_dispatch,
             {ref_dispatch, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,60},{resources,1}]
+              {maxr,10},{maxt,60},{resources,1},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     dispcount:stop_dispatch(stop_dispatch),
     ok = dispcount:start_dispatch(
             stop_dispatch,
             {ref_dispatch, []},
              [{restart,permanent},{shutdown,4000},
-              {maxr,10},{maxt,60},{resources,1}]
+              {maxr,10},{maxt,60},{resources,1},
+              {dispatch_mechanism, ?config(dispatch_mechanism, Config)}]
     ),
     dispcount:stop_dispatch(stop_dispatch).
 
