@@ -146,7 +146,7 @@ init(Id,Conf,M,A) ->
     end.
 
 dispatch_id(hash, _Tid, Num) ->
-    erlang:phash2({os:timestamp(),self()}, Num) + 1;
+    erlang:phash2({os:perf_counter(),self()}, Num) + 1;
 dispatch_id(round_robin, Tid, Num) ->
     ets:update_counter(Tid, round_robin, {2, 1, Num, 1}).
 
