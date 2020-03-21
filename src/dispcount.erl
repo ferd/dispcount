@@ -3,19 +3,19 @@
 -export([start/2,stop/1]).
 -export([start_dispatch/3, stop_dispatch/1,
          dispatcher_info/1, checkout/1, checkout/2, checkin/3]).
--export([behaviour_info/1]).
 
-%% eventually switch to -callback if it becomes backwards compatible
-behaviour_info(callbacks) ->
-    [{init,1},
-     {checkout, 2},
-     {checkin, 2},
-     {handle_info,2},
-     {dead,1},
-     {terminate,2},
-     {code_change,3}];
-behaviour_info(_Other) ->
-    undefined.
+-callback init(Args::[any()]) -> {ok, CallbackState::any()}.
+-callback checkout(From::pid(), CallbackState::any()) -> {ok, Resource::any(), NewCallbackState::any()} |
+                                    {error, Reason::any(), NewCallbackState::any()} |
+                                    {stop, Reason::any(), NewCallbackState::any()}.
+-callback checkin(Resource::any(), CallbackState::any()) -> {ok, NewCallbackState::any()} |
+                                   {ignore, CallbackState::any()} |
+                                   {stop, Reason::any(), NewCallbackState::any()}.
+-callback handle_info(Info::any(), CallbackState::any()) -> {ok, NewCallbackState::any()} |
+                                                            {stop, Reason::any(), NewCallbackState::any()}.
+-callback dead(CallbackState::any()) -> {ok, NewCallbackState::any()} |
+                                        {stop, Reason::any(), NewCallbackState::any()}.
+-callback terminate(Reason::any(), CallbackState::any()) -> Ignored::any().
 
 -spec start(normal, _) -> {ok, pid()}.
 start(normal, _Args) ->
