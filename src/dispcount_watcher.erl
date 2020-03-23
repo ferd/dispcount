@@ -29,8 +29,11 @@ checkout(Conf, Timeout) ->
 
 -spec checkout(pid(), #config{}, timeout()) -> {ok, Ref::term(), Resource::term()} | {error, Reason::term()}.
 checkout(ToPid,#config{dispatch_name=Name, num_watchers=Num, watcher_type=Type, dispatch_table=DTid, dispatch_mechanism=DType, worker_table=WTid}, Timeout) ->
-     case {Type, is_free(DTid, Id = dispatch_id(DType, DTid, Num))} of
+     case {Type, is_free(Type, DTid, Id = dispatch_id(Type, DType, DTid, Num))} of
         {ets, true} ->
+            [{_,Pid}] = ets:lookup(WTid, Id),
+            gen_server:call(Pid, {get,ToPid}, Timeout);
+        {atomics, true} ->
             [{_,Pid}] = ets:lookup(WTid, Id),
             gen_server:call(Pid, {get,ToPid}, Timeout);
         {named, true} ->
@@ -47,6 +50,10 @@ checkin(#config{}, {Pid,Ref}, Resource) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% GEN_SERVER CALLBACKS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+init({Id,C=#config{watcher_type=atomics,dispatch_table=Atomics,worker_table=WTid},{M,A}}) ->
+    ets:insert(WTid, {Id, self()}),
+    atomics:add(Atomics, 1, 1),
+    init(Id,C,M,A);
 init({Id,C=#config{watcher_type=ets,dispatch_table=DTid,worker_table=WTid},{M,A}}) ->
     ets:insert(WTid, {Id, self()}),
     ets:insert(DTid, {Id, 0}),
@@ -62,8 +69,8 @@ handle_call({get, Pid}, _From, S=#state{callback=M, callback_state=CS, ref=undef
             MonRef = erlang:monitor(process, Pid),
             {reply, {ok, {self(),MonRef}, Res}, S#state{callback_state=NewCS, ref=MonRef}};
         {error, Reason, NewCS} ->
-            #config{dispatch_table=DTid} = Conf,
-            set_free(DTid, Id),
+            #config{watcher_type=Type, dispatch_table=DTid} = Conf,
+            set_free(Type, DTid, Id),
             {reply, {error, Reason}, S#state{callback_state=NewCS}};
         {stop, Reason, NewCS} ->
             M:terminate(Reason, NewCS),
@@ -81,9 +88,9 @@ handle_cast({put, Ref, Res},
             S=#state{callback=M, callback_state=CS, config=Conf, id=Id, ref=Ref}) ->
     try M:checkin(Res, CS) of
         {ok, NewCS} ->
-            #config{dispatch_table=DTid} = Conf,
+            #config{watcher_type=Type, dispatch_table=DTid} = Conf,
             erlang:demonitor(Ref, [flush]),
-            set_free(DTid, Id),
+            set_free(Type, DTid, Id),
             {noreply, S#state{ref=undefined,callback_state=NewCS}};
         {ignore, NewCS} ->
             {noreply, S#state{callback_state=NewCS}};
@@ -103,8 +110,8 @@ handle_info({'DOWN', Ref, process, _Pid, _Reason},
             S=#state{ref=Ref, callback=M, callback_state=CS, config=Conf, id=Id}) ->
     try M:dead(CS) of
         {ok, NewCS} ->
-            #config{dispatch_table=DTid} = Conf,
-            set_free(DTid, Id),
+            #config{watcher_type=Type, dispatch_table=DTid} = Conf,
+            set_free(Type, DTid, Id),
             {noreply, S#state{ref=undefined,callback_state=NewCS}};
         {stop, Reason, NewCS} ->
             M:terminate(Reason, NewCS),
@@ -145,12 +152,18 @@ init(Id,Conf,M,A) ->
         X -> X
     end.
 
-dispatch_id(hash, _Tid, Num) ->
+dispatch_id(_Type, hash, _Tid, Num) ->
     erlang:phash2({os:perf_counter(),self()}, Num) + 1;
-dispatch_id(round_robin, Tid, Num) ->
+dispatch_id(atomics, round_robin, Atomics, Num) ->
+    %% 2^64 checkouts should be enough for anyone
+    %% and if they're not the counter wraps
+    (atomics:add_get(Atomics, 1, 1) rem Num) + 1;
+dispatch_id(_Type, round_robin, Tid, Num) ->
     ets:update_counter(Tid, round_robin, {2, 1, Num, 1}).
 
-is_free(Tid, Id) ->
+is_free(atomics, Atomics, Id) ->
+    ok == atomics:compare_exchange(Atomics, Id + 2, 0, 1);
+is_free(_Type, Tid, Id) ->
     %% We optionally keep a tiny message queue in there,
     %% which should cause no overhead but be fine to deal
     %% with short spikes.
@@ -159,5 +172,8 @@ is_free(Tid, Id) ->
         _ -> false
     end.
 
-set_free(Tid, Id) ->
+set_free(atomics, Atomics, Id) ->
+    %% explicitly assert the counter went back to 0
+    ok = atomics:compare_exchange(Atomics, Id+2, 1, 0);
+set_free(_Type, Tid, Id) ->
     ets:insert(Tid, {Id,0}).

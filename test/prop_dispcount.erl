@@ -1,5 +1,5 @@
 %%% Basic sequential statem based tests for dispcount.
--module(dispcount_prop).
+-module(prop_dispcount).
 -include_lib("proper/include/proper.hrl").
 -behaviour(proper_statem).
 
@@ -54,7 +54,7 @@ postcondition(#state{resource=L=[_|_]}, {call, _, checkout, _}, {ok,_Ref,Res}) -
     end;
 postcondition(_, _, _) -> false.
 
-prop_nocrash() ->
+prop_nocrash(Type, Mechanism) ->
     ?FORALL(Cmds, commands(?MODULE, #state{}),
         begin
             %% the ETS table works with the dispcount dispatcher
@@ -67,6 +67,7 @@ prop_nocrash() ->
             ok = ?SERVER:start_dispatch(?NAME,
                                         {?NAME, [Tid]},
                                         [{restart,permanent},{shutdown,4000},
+                                         {watcher_type, Type}, {dispatch_mechanism, Mechanism},
                                          {maxr,10},{maxt,60},{resources,10}]),
             {H,_S,R} = run_commands(?MODULE, Cmds),
             ets:delete(Tid),
@@ -75,7 +76,26 @@ prop_nocrash() ->
                                 R =:= ok))
         end).
 
-prop_parallel_nocrash() ->
+prop_nocrash_ets_hash() ->
+    prop_nocrash(ets, hash).
+
+prop_nocrash_ets_round_robin() ->
+    prop_nocrash(ets, round_robin).
+
+prop_nocrash_named_hash() ->
+    prop_nocrash(named, hash).
+
+prop_nocrash_named_round_robin() ->
+    prop_nocrash(named, round_robin).
+
+prop_nocrash_atomics_hash() ->
+    prop_nocrash(atomics, hash).
+
+prop_nocrash_atomics_round_robin() ->
+    prop_nocrash(atomics, round_robin).
+
+%% this seems broken?
+noprop_parallel_nocrash() ->
     ?FORALL(Cmds, parallel_commands(?MODULE, #state{}),
         begin
             %% the ETS table works with the dispcount dispatcher

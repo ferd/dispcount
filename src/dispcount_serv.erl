@@ -50,6 +50,14 @@ init({Parent, Name, {M,A}, Opts}) ->
 
 handle_call(get_info, _From, S = #config{}) ->
     {reply, {ok, S}, S};
+handle_call(wait_for_tables, _From, S = #config{watcher_type=atomics,num_watchers=N, dispatch_table=Atomics}) ->
+    case atomics:get(Atomics, 1) == N of
+        true ->
+            {reply, ok, S};
+        false ->
+            timer:sleep(1),
+            handle_call(wait_for_tables, _From, S)
+    end;
 handle_call(wait_for_tables, _From, S = #config{num_watchers=N, dispatch_table=Tid}) ->
     %% there should be N + 2 entries in the dispatch table
     case ets:info(Tid, size) of
@@ -98,6 +106,13 @@ init_tables(Opts) ->
             #config{watcher_type = named,
                     dispatch_table = Dispatch,
                     worker_table = undefined};
+        atomics ->
+            %% allocate 2 extra atomics for the ct and round_robin
+            Atomics = atomics:new(proplists:get_value(resources,Opts,10) + 2, [{signed, false}]),
+            Worker = ets:new(worker_table, [set, public, {read_concurrency,true}]),
+            #config{watcher_type = atomics,
+                    dispatch_table = Atomics,
+                    worker_table = Worker};
         Other ->
             erlang:error({bad_option,{watcher_type,Other}})
     end.
