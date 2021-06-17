@@ -29,7 +29,7 @@ stop(_State) ->
 stop_dispatch(Name) ->
     dispcount_supersup:stop_dispatch(Name).
 
--spec start_dispatch(Name::atom(), {module(), _}, term()) -> ok | already_defined.
+-spec start_dispatch(Name::atom(), {module(), _}, term()) -> ok | already_started.
 start_dispatch(Name, Mod={M,_A}, DispatchOpts) when is_atom(M) ->
     Res = dispcount_supersup:start_dispatch(Name, Mod, DispatchOpts),
     %% wait for all tables to be there. A bit messy, but it can be done:
