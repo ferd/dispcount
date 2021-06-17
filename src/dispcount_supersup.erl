@@ -9,7 +9,7 @@
 start_link() ->
     supervisor:start_link({local,?MODULE}, ?MODULE, []).
 
--spec start_dispatch(Name::atom(), {module(),[term()]}, Opts::[term()]) -> ok.
+-spec start_dispatch(Name::atom(), {module(),[term()]}, Opts::[term()]) -> ok | already_started.
 start_dispatch(Name, Mod, Opts) ->
     case supervisor:start_child(?MODULE, [Name, Mod, Opts]) of
         {ok, _} -> ok;
