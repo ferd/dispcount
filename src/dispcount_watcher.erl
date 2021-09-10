@@ -8,7 +8,7 @@
                 id :: pos_integer(),
                 ref :: reference() | undefined}).
 
--export([start_link/3, checkout/1, checkout/2, checkin/3]).
+-export([start_link/3, checkout/1, checkout/2, transaction/2, checkin/3]).
 -export([init/1, handle_call/3, handle_cast/2,
          handle_info/2, code_change/3, terminate/2]).
 
@@ -38,6 +38,20 @@ checkout(ToPid,#config{dispatch_name=Name, num_watchers=Num, watcher_type=Type, 
             gen_server:call(Pid, {get,ToPid}, Timeout);
         {named, true} ->
             gen_server:call(get_name(Name, Id), {get,ToPid}, Timeout);
+        {_, false} ->
+            {error, busy}
+    end.
+
+transaction(#config{dispatch_name=Name, num_watchers=Num, watcher_type=Type, dispatch_table=DTid, dispatch_mechanism=DType, worker_table=WTid}, Fun) ->
+    case {Type, is_free(Type, DTid, Id = dispatch_id(Type, DType, DTid, Num))} of
+        {ets, true} ->
+            [{_,Pid}] = ets:lookup(WTid, Id),
+            gen_server:cast(Pid, {txn,self(), Fun});
+        {atomics, true} ->
+            [{_,Pid}] = ets:lookup(WTid, Id),
+            gen_server:cast(Pid, {txn,self(), Fun});
+        {named, true} ->
+            gen_server:cast(get_name(Name, Id), {txn,self(),Fun});
         {_, false} ->
             {error, busy}
     end.
@@ -84,6 +98,23 @@ handle_call({get, _Pid}, _From, State) -> % busy
 handle_call(_Call, _From, State) ->
     {noreply, State}.
 
+
+handle_cast({txn, Pid, Fun}, S=#state{callback=M, callback_state=CS, ref=undefined, config=Conf, id=Id}) ->
+    #config{watcher_type=Type, dispatch_table=DTid} = Conf,
+    try M:transaction(Pid, Fun, CS) of
+        ok ->
+            set_free(Type, DTid, Id),
+            {noreply, S};
+        {ok, NewCS} ->
+            set_free(Type, DTid, Id),
+            {noreply, S#state{callback_state=NewCS}};
+        {stop, Reason, NewCS} ->
+            M:terminate(Reason, NewCS),
+            {stop, Reason, S}
+    catch
+        Type:Reason ->
+            {stop, {Type,Reason}, S}
+    end;
 handle_cast({put, Ref, Res},
             S=#state{callback=M, callback_state=CS, config=Conf, id=Id, ref=Ref}) ->
     try M:checkin(Res, CS) of
